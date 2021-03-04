@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Set
+from typing import List, Set, Tuple
 from itertools import combinations
 import time
 
@@ -209,15 +209,9 @@ class Grid:
 
     def insert_known_value(self, col: int, row: int, value: int):
         """Manually set the value of a certain box"""
-        try:
-            for box in self.boxes:
-                if box.col == col and box.row == row:
-                    box.possible_values = {value}
-        except AssertionError:
-            print("Wow, failed to insert the value")
-            for row in self.rows:
-                print([str(box.possible_values).center(12) for box in row])
-                raise ValueError(f'Failed to set value of Box({col}, {row}) to {value}')
+        for box in self.boxes:
+            if box.col == col and box.row == row:
+                box.possible_values = {value}
 
     def copy_grid(self) -> Grid:
         """Returns a deep copy of the grid"""
@@ -410,87 +404,13 @@ class Solver:
                     raise AssertionError(f'Duplicate value: {box} and {neighbor} both are {box.known_value}')
 
 
-def input_values_into_grid(grid_: Grid, known_values):
+def input_values_into_grid(grid_: Grid, known_values: Tuple[int, int, int]):
     for known_value in known_values:
         grid_.insert_known_value(*known_value)
 
 
-# None of these puzzles can be solved without methods involving guessing.
-very_difficult_puzzle = [
-    (1, 2, 4),
-    (1, 3, 3),
-    (1, 6, 7),
-    (1, 7, 1),
-    (1, 8, 6),
-    (2, 4, 9),
-    (3, 2, 1),
-    (3, 4, 8),
-    (3, 8, 7),
-    (4, 7, 2),
-    (5, 2, 6),
-    (5, 3, 1),
-    (5, 5, 9),
-    (6, 4, 4),
-    (6, 6, 3),
-    (7, 8, 5),
-    (8, 1, 7),
-    (8, 2, 5),
-    (8, 5, 4),
-    (8, 6, 9),
-    (8, 9, 1),
-    (9, 1, 2),
-    (9, 6, 8),
-    (9, 9, 9)]
-extremely_difficult_puzzle = [
-    (1, 1, 8),
-    (2, 3, 7),
-    (2, 4, 5),
-    (2, 9, 9),
-    (3, 2, 3),
-    (3, 7, 1),
-    (3, 8, 8),
-    (4, 2, 6),
-    (4, 6, 1),
-    (4, 8, 5),
-    (5, 3, 9),
-    (5, 5, 4),
-    (6, 4, 7),
-    (6, 5, 5),
-    (7, 3, 2),
-    (7, 5, 7),
-    (7, 9, 4),
-    (8, 6, 3),
-    (8, 7, 6),
-    (8, 8, 1),
-    (9, 7, 8)]
-most_difficult_puzzle_possible = [
-    (1, 1, 1),
-    (1, 6, 6),
-    (1, 7, 3),
-    (2, 2, 3),
-    (2, 5, 1),
-    (2, 8, 4),
-    (3, 3, 9),
-    (3, 4, 5),
-    (3, 9, 7),
-    (4, 3, 6),
-    (4, 4, 3),
-    (5, 2, 2),
-    (5, 5, 8),
-    (6, 1, 7),
-    (6, 6, 4),
-    (7, 3, 5),
-    (7, 4, 9),
-    (7, 9, 3),
-    (8, 1, 9),
-    (8, 7, 1),
-    (9, 2, 8),
-    (9, 5, 2),
-    (9, 8, 7),
-]
-
-my_grid = Grid()
-input_values_into_grid(my_grid, most_difficult_puzzle_possible)
-my_solver = Solver(my_grid)
-start = time.time()
-my_solver.solve()
+def solve(known_values):
+    grid = Grid()
+    input_values_into_grid(my_grid, known_values)
+    solver = Solver(grid)
+    solver.solve()
