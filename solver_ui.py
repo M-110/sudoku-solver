@@ -1,8 +1,10 @@
 import sys
 from typing import Dict, Tuple, List, Optional
+from time import sleep
 
 from PyQt5.QtCore import Qt
 
+from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtWidgets import QWidget
@@ -13,6 +15,32 @@ from PyQt5.QtWidgets import QGroupBox
 
 import sudoku_solver_model
 
+SOLUTION = [
+    (1, 1, 1),
+    (1, 6, 6),
+    (1, 7, 3),
+    (2, 2, 3),
+    (2, 5, 1),
+    (2, 8, 4),
+    (3, 3, 9),
+    (3, 4, 5),
+    (3, 9, 7),
+    (4, 3, 6),
+    (4, 4, 3),
+    (5, 2, 2),
+    (5, 5, 8),
+    (6, 1, 7),
+    (6, 6, 4),
+    (7, 3, 5),
+    (7, 4, 9),
+    (7, 9, 3),
+    (8, 1, 9),
+    (8, 7, 1),
+    (9, 2, 8),
+    (9, 5, 2),
+    (9, 8, 7),
+]
+
 
 class GridUI(QWidget):
     """PyCalc's View (GUI)."""
@@ -21,6 +49,7 @@ class GridUI(QWidget):
         """View initializer."""
         super().__init__()
 
+        self.setWindowIcon(QIcon('icon.png'))
         self.setWindowTitle('Sudoku Solver')
         self.setFixedSize(500, 500)
         self.layout = QGridLayout()
@@ -31,6 +60,12 @@ class GridUI(QWidget):
         self._create_board_grid()
         self._create_buttons()
         
+        self._test()
+        
+    def _test(self):
+        for x, y, value in SOLUTION:
+            self.cells[(y-1, x-1)].setCurrentText(str(value))
+
     def _create_board_grid(self):
         """Create 9 GroupBoxes representing the 9 boxes of the board."""
         for i in range(3):
@@ -57,40 +92,40 @@ class GridUI(QWidget):
             cell.addItem(str(i))
         cell.setFixedSize(30, 20)
         return cell
-    
+
     def _create_buttons(self):
         """Create the Solve and Reset buttons."""
         self.solve_button = QPushButton('Solve')
         self.solve_button.clicked.connect(self.solve)
         self.layout.addWidget(self.solve_button)
-        
+
         self.reset_button = QPushButton('Reset')
         self.reset_button.clicked.connect(self.reset)
         self.layout.addWidget(self.reset_button)
-        
+
         self.output = QLabel("")
         self.output.setAlignment(Qt.AlignCenter)
         self.layout.addWidget(self.output)
-        
+
     def solve(self):
         """Attempt to solve the puzzle."""
-        known_values: List[Tuple[int, int, int]] = [(x, y, int(c.currentText()))
+        known_values: List[Tuple[int, int, int]] = [(y + 1, x + 1, int(c.currentText()))
                                                     for (x, y), c in self.cells.items()
                                                     if c.currentText()]
         print(known_values)
         self.output.setText("Solving...")
-        return
+
         solution: Optional[List[Tuple[int, int, int]]] = sudoku_solver_model.solve(known_values)
-        
-        if solution is None:
-            self.output.setText("Unable to solve")
+
+        if isinstance(solution, str):
+            self.output.setText(solution)
             return
 
         self.output.setText("Solved")
-        
+
         for x, y, value in solution:
-            self.cells[(x, y)].setCurrentText(str(value))
-        
+            self.cells[(y - 1, x - 1)].setCurrentText(str(value))
+
     def reset(self):
         """Reset all cells to their default value."""
         for cell in self.cells.values():

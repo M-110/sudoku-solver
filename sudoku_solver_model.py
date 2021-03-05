@@ -229,17 +229,6 @@ class Solver:
     def grid(self):
         return self._grid
 
-    def print_possible(self):
-        """Print a grid of possible values, row by row."""
-        for row in self.grid.rows:
-            print(
-                [str(box.possible_values).center(14) if len(box.possible_values) > 1 else ''.center(14) for box in row])
-
-    def print_known(self):
-        """Print a grid of known values, row by row."""
-        for row in self.grid.rows:
-            print([str(box.known_value) if box.known_value else ' ' for box in row])
-
     def known_count(self) -> int:
         """Calculate the number of Boxes with a known value"""
         return sum(1 for box in self.grid.boxes if box.known_value)
@@ -248,38 +237,27 @@ class Solver:
         """Calculate the sum of the count of possible values among all boxes"""
         return sum(len(box.possible_values) for box in self.grid.boxes)
 
-    def print_info_stuff(self):
-        """Print information on the current grid"""
-        print(f'Found: {self.known_count()} among 81')
-        print(f'Possible Values {self.possible_count()}')
-        print(f'Possibilities to Eliminate {self.possible_count() - 81}')
-        self.print_possible()
-        self.print_known()
+    def check_if_solved(self) -> bool:
+        """Returns true if puzzle is solved."""
+        return self.possible_count() == 81
 
-    def check_if_solved(self):
-        """Checks if puzzle is solved. Displays the solution and solving time then quits the program."""
-        if self.possible_count() == 81:
-            self.print_info_stuff()
-            print('Quitting')
-            end = time.time()
-            print(f'Total time: {end - start}')
-            quit()
-
-    def solve(self):
+    def solve(self) -> List[Tuple[int, int, int]] or None:
         prev_count = 729
         while prev_count > self.possible_count():
             while prev_count > self.possible_count():
                 prev_count = self.possible_count()
                 self.basic_solve_loop()
-                self.check_if_solved()
+                if self.check_if_solved():
+                    print('solved')
+                    return self.solution_keys()
             prev_count = self.possible_count()
             self.guess_between_two_possible_values_heuristic()
-            self.check_if_solved()
-        self.advanced_heuristic()
+            if self.check_if_solved():
+                print('solved')
+                return self.solution_keys()
+        print(self.known_count())
 
-        # If it reaches here, it is unsolvable
-        self.print_info_stuff()
-        print('Unsolvable Puzzle')
+        return self.advanced_heuristic()
 
     def basic_solve_loop(self):
         self.check_pairs()
@@ -360,15 +338,14 @@ class Solver:
         guess_solver = Solver(new_grid)
         guess_solver.basic_solve_loop()
 
-    def advanced_heuristic(self):
+    def advanced_heuristic(self) -> List[Tuple[int, int, int]] or None:
+        """A guess and check heuristic which chooses a value for cells with two possible values."""
         branches = self.create_branches_from_doubles()
         if not branches:
-            self.print_info_stuff()
-            print('Unable to solve')
-            quit()
+            return None
         for branch in branches:
             try:
-                branch.solve()
+                return branch.solve()
             except AssertionError:
                 pass
 
@@ -399,18 +376,39 @@ class Solver:
                 continue
             for neighbor in box.neighbors:
                 if box.known_value == neighbor.known_value:
-                    print('Grid before error:')
-                    self.print_possible()
                     raise AssertionError(f'Duplicate value: {box} and {neighbor} both are {box.known_value}')
 
+    def solution_keys(self) -> List[Tuple[int, int, int]]:
+        return [(box.col, box.row, box.known_value) for box in self.grid.boxes]
 
-def input_values_into_grid(grid_: Grid, known_values: Tuple[int, int, int]):
+
+def input_values_into_grid(grid: Grid, known_values: List[Tuple[int, int, int]]):
     for known_value in known_values:
-        grid_.insert_known_value(*known_value)
+        grid.insert_known_value(*known_value)
 
 
-def solve(known_values: List[Tuple[int, int, int]]):
+def validate_known_values(known_values) -> str:
+    for box in known_values:
+        for other in (set(known_values) - {box}):
+            if box[2] == other[2]:
+                if box[0] == other[0]:
+                    return "Error: Duplicate column values"
+                if box[1] == other[1]:
+                    return "Error: Duplicate row values"
+                if (box[0] - 1) // 3 == (other[0] - 1) // 3 and (box[1] - 1) // 3 == (other[1] - 1) // 3:
+                    return "Error: Duplicate block values"
+    return ""
+
+
+def solve(known_values: List[Tuple[int, int, int]]) -> List[Tuple[int, int, int]] or str:
+    if error := validate_known_values(known_values):
+        return error
+    print('Valid grid, proceeding to solve')
     grid = Grid()
     input_values_into_grid(grid, known_values)
+    print('Inserted values')
     solver = Solver(grid)
-    solver.solve()
+    print('finished')
+    solution = solver.solve()
+    print(f'Errors: {validate_known_values(solution)}')
+    return solution
