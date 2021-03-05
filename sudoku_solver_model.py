@@ -1,15 +1,20 @@
 from __future__ import annotations
-from typing import List, Set, Tuple
+from typing import List, Set, Tuple, Optional
 from itertools import combinations
-import time
 
 
 class Box:
-    def __init__(self, col, row):
+    """Box represents a single grid space on the board.
+    
+    Args:
+        col: column index (1 - 9)
+        row: row index (1 - 9)
+    """
+    def __init__(self, col: int, row: int):
         self._col = col
         self._row = row
 
-        self._known_value = None
+        self._known_value: Optional[int] = None
         self._possible_values = set(range(1, 10))
 
         self.row_neighbors = set()
@@ -18,40 +23,44 @@ class Box:
         self.neighbors = set()
         self.neighborhood_sets = set()
 
-        self._row_neighbors_possible_values = None
-        self._col_neighbors_possible_values = None
-        self._block_neighbors_possible_values = None
+        self._row_neighbors_possible_values: set[int] = None
+        self._col_neighbors_possible_values: set[int] = None
+        self._block_neighbors_possible_values: set[int] = None
 
-        self._combinations_size_2 = None
-        self._combinations_size_3 = None
-        self._combinations_size_4 = None
+        self._combinations_size_2: List[set[int]] = None
+        self._combinations_size_3: List[set[int]] = None
+        self._combinations_size_4: List[set[int]] = None
 
-        self._row_block_intersection = None
-        self._col_block_intersection = None
+        self._row_block_intersection: set[int] = None
+        self._col_block_intersection: set[int] = None
 
-        self._row_minus_block = None
-        self._col_minus_block = None
+        self._row_minus_block: set[int] = None
+        self._col_minus_block: set[int] = None
 
-        self._block_minus_row = None
-        self._block_minus_col = None
+        self._block_minus_row: set[int] = None
+        self._block_minus_col: set[int] = None
 
     def __repr__(self):
         return f'Box({self.col}, {self.row})'
 
     @property
     def row(self) -> int:
+        """Get row index (1 - 9)."""
         return self._row
 
     @property
     def col(self) -> int:
+        """Get column index (1 - 9)."""
         return self._col
 
     @property
     def known_value(self) -> int or None:
+        """Get value of box if it is known otherwise None."""
         return self._known_value
 
     @property
     def possible_values(self) -> Set[int]:
+        """Get or set possible values."""
         for neighbor in self.neighbors:
             if neighbor.known_value:
                 self.possible_values = self._possible_values - {neighbor.known_value}
@@ -65,6 +74,8 @@ class Box:
             self._known_value = list(value)[0]
         self._possible_values = value
 
+        # Reset other values to None so they will be
+        # forced to update next time they are called.
         self._combinations_size_2 = None
         self._combinations_size_3 = None
         self._combinations_size_4 = None
@@ -75,77 +86,90 @@ class Box:
 
     @property
     def row_neighbors_possible_values(self) -> Set[int]:
+        """Get possible values of neighbors within the same row."""
         return set(possible_value for neighbor in self.row_neighbors
                    for possible_value in neighbor.possible_values)
 
     @property
     def col_neighbors_possible_values(self) -> Set[int]:
+        """Get possible values of neighbors within the same column."""
         return set(possible_value for neighbor in self.col_neighbors
                    for possible_value in neighbor.possible_values)
 
     @property
     def block_neighbors_possible_values(self) -> Set[int]:
+        """Get possible values of neighbors within the same block."""
         return set(possible_value for neighbor in self.block_neighbors
                    for possible_value in neighbor.possible_values)
 
     @property
     def combinations_size_2(self) -> List[Set[int]]:
+        """Get all 2 length combinations of 2 of box's possible values."""
         if self._combinations_size_2 is None:
             self._combinations_size_2 = [set(combo) for combo in combinations(self.possible_values, 2)]
         return self._combinations_size_2
 
     @property
     def combinations_size_3(self) -> List[Set[int]]:
+        """Get all 3 length combinations of 2 of box's possible values."""
         if self._combinations_size_3 is None:
             self._combinations_size_3 = [set(combo) for combo in combinations(self.possible_values, 3)]
         return self._combinations_size_3
 
     @property
     def combinations_size_4(self) -> List[Set[int]]:
+        """Get all 4 length combinations of 2 of box's possible values."""
         if self._combinations_size_4 is None:
             self._combinations_size_4 = [set(combo) for combo in combinations(self.possible_values, 4)]
         return self._combinations_size_4
 
     @property
     def row_block_intersection(self) -> Set[Box]:
+        """Get all neighbors that have the same row and block."""
         if self._row_block_intersection is None:
             self._row_block_intersection = self.row_neighbors & self.block_neighbors
         return self._row_block_intersection
 
     @property
     def col_block_intersection(self) -> Set[Box]:
+        """Get all neighbors that have the same column and block."""
         if self._col_block_intersection is None:
             self._col_block_intersection = self.col_neighbors & self.block_neighbors
         return self._col_block_intersection
 
     @property
     def row_minus_block(self) -> Set[Box]:
+        """Get all row neighbors outside of the box's block."""
         if self._row_minus_block is None:
             self._row_minus_block = self.row_neighbors - self.block_neighbors
         return self._row_minus_block
 
     @property
     def col_minus_block(self) -> Set[Box]:
+        """Get all column neighbors outside of the box's block."""
         if self._col_minus_block is None:
             self._col_minus_block = self.col_neighbors - self.block_neighbors
         return self._col_minus_block
 
     @property
     def block_minus_row(self) -> Set[Box]:
+        """Get all block neighbors outside of the box's row."""
         if self._block_minus_row is None:
             self._block_minus_row = self.block_neighbors - self.row_neighbors
         return self._block_minus_row
 
     @property
     def block_minus_col(self) -> Set[Box]:
+        """Get all block neighbors outside of the box's column."""
         if self._block_minus_col is None:
             self._block_minus_col = self.block_neighbors - self.col_neighbors
         return self._block_minus_col
 
 
 class Grid:
+    """Grid storing all the values on the sudoku board."""
     def __init__(self):
-        self._boxes = self.generate_boxes()
+        self._boxes: List[Box] = self.generate_boxes()
         self._rows = self.get_rows()
         self._cols = self.get_cols()
         self._blocks = self.get_blocks()
@@ -154,26 +178,32 @@ class Grid:
 
     @property
     def boxes(self):
+        """Get a list of all boxes in the grid."""
         return self._boxes
 
     @property
     def rows(self):
+        """Get a list of rows, each containg a list of boxes in that row."""
         return self._rows
 
     @property
     def cols(self):
+        """Get a list of columns, each containg a list of boxes in that column."""
         return self._cols
 
     @property
     def blocks(self):
+        """Get a list of blocks, each containg a list of boxes in that block."""
         return self._blocks
 
     @property
     def neighborhood_types(self):
+        """Get a list containg lists of the rows, columns and blocks."""
         return self._neighborhood_types
 
     @staticmethod
     def generate_boxes() -> List[Box]:
+        """Generate 81 boxes to fill the grid."""
         return [Box(col, row) for col in range(1, 10)
                 for row in range(1, 10)]
 
