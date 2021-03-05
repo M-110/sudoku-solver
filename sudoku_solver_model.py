@@ -409,8 +409,8 @@ def input_values_into_grid(grid_: Grid, known_values: Tuple[int, int, int]):
         grid_.insert_known_value(*known_value)
 
 
-def solve(known_values):
+def solve(known_values: List[Tuple[int, int, int]]):
     grid = Grid()
-    input_values_into_grid(my_grid, known_values)
+    input_values_into_grid(grid, known_values)
     solver = Solver(grid)
     solver.solve()
