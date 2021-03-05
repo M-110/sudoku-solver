@@ -1,11 +1,11 @@
 import sys
 from typing import Dict, Tuple, List, Optional
-from time import sleep
+from os.path import join
 
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QSize
 
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QGridLayout
@@ -48,10 +48,7 @@ class GridUI(QWidget):
     def __init__(self):
         """View initializer."""
         super().__init__()
-
-        self.setWindowIcon(QIcon('icon.png'))
-        self.setWindowTitle('Sudoku Solver')
-        self.setFixedSize(500, 500)
+        self.set_window_properties()
         self.layout = QGridLayout()
         self.setLayout(self.layout)
 
@@ -65,6 +62,17 @@ class GridUI(QWidget):
     def _test(self):
         for x, y, value in SOLUTION:
             self.cells[(y-1, x-1)].setCurrentText(str(value))
+            
+    def set_window_properties(self):
+        app_icon = QIcon()
+        app_icon.addFile(join('icons', '256.png'), QSize(256, 256))
+        app_icon.addFile(join('icons', '48.png'), QSize(48, 48))
+        app_icon.addFile(join('icons', '32.png'), QSize(32, 32))
+        app_icon.addFile(join('icons', '24.png'), QSize(24, 24))
+        app_icon.addFile(join('icons', '16.png'), QSize(16, 16))
+        self.setWindowIcon(app_icon)
+        self.setWindowTitle('Sudoku Solver')
+        self.setFixedSize(500, 500)
 
     def _create_board_grid(self):
         """Create 9 GroupBoxes representing the 9 boxes of the board."""
@@ -112,7 +120,6 @@ class GridUI(QWidget):
         known_values: List[Tuple[int, int, int]] = [(y + 1, x + 1, int(c.currentText()))
                                                     for (x, y), c in self.cells.items()
                                                     if c.currentText()]
-        print(known_values)
         self.output.setText("Solving...")
 
         solution: Optional[List[Tuple[int, int, int]]] = sudoku_solver_model.solve(known_values)

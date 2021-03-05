@@ -248,15 +248,11 @@ class Solver:
                 prev_count = self.possible_count()
                 self.basic_solve_loop()
                 if self.check_if_solved():
-                    print('solved')
                     return self.solution_keys()
             prev_count = self.possible_count()
             self.guess_between_two_possible_values_heuristic()
             if self.check_if_solved():
-                print('solved')
                 return self.solution_keys()
-        print(self.known_count())
-
         return self.advanced_heuristic()
 
     def basic_solve_loop(self):
@@ -403,12 +399,11 @@ def validate_known_values(known_values) -> str:
 def solve(known_values: List[Tuple[int, int, int]]) -> List[Tuple[int, int, int]] or str:
     if error := validate_known_values(known_values):
         return error
-    print('Valid grid, proceeding to solve')
     grid = Grid()
     input_values_into_grid(grid, known_values)
-    print('Inserted values')
     solver = Solver(grid)
-    print('finished')
+
     solution = solver.solve()
-    print(f'Errors: {validate_known_values(solution)}')
+    if solution is None:
+        return "Could not find solution"
     return solution
