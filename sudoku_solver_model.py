@@ -1,6 +1,12 @@
+"""Sudoku solving algorithm."""
+
 from __future__ import annotations
 from typing import List, Set, Tuple, Optional
 from itertools import combinations
+
+
+class InvalidGrid(Exception):
+    """Exception raised when the Sudoku grid is invalid."""
 
 
 class Box:
@@ -13,6 +19,7 @@ class Box:
         col: column index (1 - 9)
         row: row index (1 - 9)
     """
+
     def __init__(self, col: int, row: int):
         self._col = col
         self._row = row
@@ -26,22 +33,22 @@ class Box:
         self.neighbors = set()
         self.neighborhood_sets = set()
 
-        self._row_neighbors_possible_values: set[int] = None
-        self._col_neighbors_possible_values: set[int] = None
-        self._block_neighbors_possible_values: set[int] = None
+        self._row_neighbors_possible_values: Optional[Set[int]] = None
+        self._col_neighbors_possible_values: set[int] or None = None
+        self._block_neighbors_possible_values: set[int] or None = None
 
-        self._combinations_size_2: List[set[int]] = None
-        self._combinations_size_3: List[set[int]] = None
-        self._combinations_size_4: List[set[int]] = None
+        self._combinations_size_2: Optional[Set[int]] = None
+        self._combinations_size_3: Optional[Set[int]] = None
+        self._combinations_size_4: Optional[Set[int]] = None
 
-        self._row_block_intersection: set[int] = None
-        self._col_block_intersection: set[int] = None
+        self._row_block_intersection: Optional[Set[int]] = None
+        self._col_block_intersection: Optional[Set[int]] = None
 
-        self._row_minus_block: set[int] = None
-        self._col_minus_block: set[int] = None
+        self._row_minus_block: Optional[Set[int]] = None
+        self._col_minus_block: Optional[Set[int]] = None
 
-        self._block_minus_row: set[int] = None
-        self._block_minus_col: set[int] = None
+        self._block_minus_row: Optional[Set[int]] = None
+        self._block_minus_col: Optional[Set[int]] = None
 
     def __repr__(self):
         return f'Box({self.col}, {self.row})'
@@ -72,7 +79,7 @@ class Box:
     @possible_values.setter
     def possible_values(self, value: Set[int]):
         if len(value) == 0:
-            raise AssertionError(f'Box({self.col}, {self.row}) - Empty set!')
+            raise InvalidGrid(f'Box({self.col}, {self.row}) - Empty set!')
         if len(value) == 1 and self._known_value is None:
             self._known_value = list(value)[0]
         self._possible_values = value
@@ -171,6 +178,7 @@ class Box:
 
 class Grid:
     """Grid storing all the values on the sudoku board."""
+
     def __init__(self):
         self._boxes: List[Box] = self.generate_boxes()
         self._rows = self.get_rows()
@@ -261,10 +269,7 @@ class Grid:
 class Solver:
     def __init__(self, grid: Grid):
         self._grid = grid
-    
-    def useless(self):
-        ...
-    
+
     @property
     def grid(self):
         """Returns the current grid."""
@@ -287,26 +292,40 @@ class Solver:
         If the basic solve loop fails, then it will try the advanced heuristic loop
         which will continue until it has solved the puzzle or it has run out of box pairs
         to create new branches from.
-        """
         
+        Note: Many of the solving rules are baked into the Box class itself. So each of
+              boxes will try to reduce its possible values through its own properties, and
+              not be explicitly called through these methods in the Solve class.
+        """
+
         # The initial total count of possible values.
         prev_count = 9 * 81
         while prev_count > self.possible_count():
+            # Run the grid through the basic Sudoku logic solving methods.
+            # If a solution is found return it.
             while prev_count > self.possible_count():
                 prev_count = self.possible_count()
                 self.basic_solve_loop()
                 if self.is_solved():
                     return self.solution_keys()
+            # If the basic Sudoku logic methods weren't sufficient then use a heuristic
+            # which guesses a value and checks whether the guessed value invalidates the grid.
+            # After the guessing heuristic reduces the possible values, do the basic solve
+            # loop above again.
             prev_count = self.possible_count()
             self.guess_between_two_possible_values_heuristic()
             if self.is_solved():
                 return self.solution_keys()
+
+        # If the basic solving methods and the guessing heuristic did not work
+        # then use the advanced heuristic to try to solve.
         return self.advanced_heuristic()
 
     def basic_solve_loop(self):
+        """Run some basic solving methods on the grid to try to reduce the possible values."""
         self.check_pairs()
+        # TODO: Maybe delete this method below?
         self.check_block_col_row_intersections()
-
         self.test_for_invalid_grid()
 
     def check_pairs(self):
@@ -331,6 +350,7 @@ class Solver:
         If a value is unique to that intersection then the value cannot be in the rest of the block or row/col.
         """
         for box in self.grid.boxes:
+            # Skip boxes that are already solved.
             if box.known_value:
                 continue
 
@@ -340,19 +360,25 @@ class Solver:
 
     @staticmethod
     def check_overlapping_neighbors_for_unique_value(value: int, neighborhood_1: Set[Box], neighborhood_2: Set[Box]):
+        """..."""
+        # Get all possible values of boxes in neighborhood 1, excluding boxes from neighborhood 2.
         neighborhood_1_minus_2_possible_values = set().union(*[box.possible_values
                                                                for box in (neighborhood_1 - neighborhood_2)])
+        # Get all possible values of boxes in neighborhood 2, excluding boxes from neighborhood 1.
         neighborhood_2_minus_1_possible_values = set().union(*[box.possible_values
                                                                for box in (neighborhood_2 - neighborhood_1)])
+        # Get boxes in neighborhood 1 that aren't in neighborhood 2.
         neighborhood_1_minus_2_neighbors = neighborhood_1 - neighborhood_2
+        # Get boxes in neighborhood 2 that aren't in neighborhood 1.
         neighborhood_2_minus_1_neighbors = neighborhood_2 - neighborhood_1
 
+        #
         if value not in neighborhood_1_minus_2_possible_values:
-            for neighbor in neighborhood_2_minus_1_neighbors:
+            for neighbor in neighborhood_1_minus_2_neighbors:
                 neighbor.possible_values -= {value}
 
         if value not in neighborhood_2_minus_1_possible_values:
-            for neighbor in neighborhood_1_minus_2_neighbors:
+            for neighbor in neighborhood_2_minus_1_neighbors:
                 neighbor.possible_values -= {value}
 
     def guess_between_two_possible_values_heuristic(self):
@@ -365,12 +391,12 @@ class Solver:
                 a, b = list(box.possible_values)
                 try:
                     self.simulate_grid_after_guess(box, a)
-                except AssertionError:
+                except InvalidGrid:
                     box.possible_values = {b}
 
                 try:
                     self.simulate_grid_after_guess(box, b)
-                except AssertionError:
+                except InvalidGrid:
                     box.possible_values = {a}
 
     def simulate_grid_after_guess(self, box: Box, guess: int):
@@ -384,54 +410,70 @@ class Solver:
 
     def advanced_heuristic(self) -> List[Tuple[int, int, int]] or None:
         """A guess and check heuristic which chooses a value for cells with two possible values."""
-        branches = self.create_branches_from_doubles()
+        
+        # Create a list of branches based on box's that have exactly two possible values.
+        # Each branch will be an instance of Solver with a grid which chooses a value from
+        # the two possible values.
+        branches: List[Solver] = self.create_branches_from_doubles()
         if not branches:
+            # If there are no doubles, end this branch.
             return None
         for branch in branches:
+            # Try to solve each new branch.
+            # If it creates an invalid grid, move on to the next branch.
             try:
                 return branch.solve()
-            except AssertionError:
+            except InvalidGrid:
                 pass
 
     def create_branches_from_doubles(self) -> List[Solver]:
         """
-        Create a solver for each possible value among boxes with two possible values
+        Create a solver for each possible value among boxes with two possible values.
         """
-        doubles = self.find_doubles()
-        branches = []
+        doubles: List[Box] = self.find_doubles()
+        branches: List[Solver] = []
         for box in doubles:
+            # Create a branch for each possible value.
             a, b = list(box.possible_values)[:2]
             branches.append(self.create_branch(box, a))
             branches.append(self.create_branch(box, b))
         return branches
 
     def create_branch(self, box: Box, value: int) -> Solver:
+        """Create a new Solver instance with a copy of the grid and insert a known value guess."""
         new_grid = self.grid.copy_grid()
         new_grid.insert_known_value(box.col, box.row, value)
         return Solver(new_grid)
 
-    def find_doubles(self):
+    def find_doubles(self) -> List[Box]:
         """Returns all boxes with possible values of length 2"""
         return [box for box in self.grid.boxes if len(box.possible_values) == 2]
 
     def test_for_invalid_grid(self):
+        """Raises an InvalidGrid exception if two neighbors have the same known value.
+        
+        Raising this exception will be caught and used in the solving heuristics which
+         require guessing and checking."""
         for box in self.grid.boxes:
             if box.known_value is None:
                 continue
             for neighbor in box.neighbors:
                 if box.known_value == neighbor.known_value:
-                    raise AssertionError(f'Duplicate value: {box} and {neighbor} both are {box.known_value}')
+                    raise InvalidGrid(f'Duplicate value: {box} and {neighbor} both are {box.known_value}')
 
     def solution_keys(self) -> List[Tuple[int, int, int]]:
+        """Returns the grid as a list of tuples of the form: (column, row, value)."""
         return [(box.col, box.row, box.known_value) for box in self.grid.boxes]
 
 
 def input_values_into_grid(grid: Grid, known_values: List[Tuple[int, int, int]]):
+    """Adds the known values to the grid."""
     for known_value in known_values:
         grid.insert_known_value(*known_value)
 
 
 def validate_known_values(known_values) -> str:
+    """Returns false if any of the known_values conflict with each other."""
     for box in known_values:
         for other in (set(known_values) - {box}):
             if box[2] == other[2]:
@@ -445,13 +487,31 @@ def validate_known_values(known_values) -> str:
 
 
 def solve(known_values: List[Tuple[int, int, int]]) -> List[Tuple[int, int, int]] or str:
+    """Attempts to solve a Sudoku puzzle given a list of known_values.
+    
+    It will return a list of the values and coordinates if it succeeds.
+    If it fails it will return an error describing what went wrong.
+    
+    Args:
+        known_values: List of known values in the form of tuples of the
+                      form (column, row, value)
+    
+    Returns:
+        If successful:
+            List of known values in the form of tuples in the form of (column, row, value)
+        If unsuccessful:
+            A string that describes the error that occurred.
+    """
     if error := validate_known_values(known_values):
         return error
+
     grid = Grid()
     input_values_into_grid(grid, known_values)
     solver = Solver(grid)
-
+    
     solution = solver.solve()
+    
     if solution is None:
         return "Could not find solution"
+    
     return solution
