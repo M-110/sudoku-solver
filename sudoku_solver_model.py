@@ -6,6 +6,9 @@ from itertools import combinations
 class Box:
     """Box represents a single grid space on the board.
     
+    Neighbors are combinations are lazily computed properties.
+    They are reset when possible_values change.
+    
     Args:
         col: column index (1 - 9)
         row: row index (1 - 9)
@@ -183,44 +186,48 @@ class Grid:
 
     @property
     def rows(self):
-        """Get a list of rows, each containg a list of boxes in that row."""
+        """Get a list of rows, each containing a list of boxes in that row."""
         return self._rows
 
     @property
     def cols(self):
-        """Get a list of columns, each containg a list of boxes in that column."""
+        """Get a list of columns, each containing a list of boxes in that column."""
         return self._cols
 
     @property
     def blocks(self):
-        """Get a list of blocks, each containg a list of boxes in that block."""
+        """Get a list of blocks, each containing a list of boxes in that block."""
         return self._blocks
 
     @property
     def neighborhood_types(self):
-        """Get a list containg lists of the rows, columns and blocks."""
+        """Get a list containing lists of the rows, columns and blocks."""
         return self._neighborhood_types
 
     @staticmethod
     def generate_boxes() -> List[Box]:
-        """Generate 81 boxes to fill the grid."""
+        """Returns 81 generated boxes to fill the grid."""
         return [Box(col, row) for col in range(1, 10)
                 for row in range(1, 10)]
 
     def get_rows(self) -> List[List[Box]]:
+        """Initialize the list of rows of boxes."""
         return [[box for box in self.boxes if box.row == i]
                 for i in range(1, 10)]
 
     def get_cols(self) -> List[List[Box]]:
+        """Initialize the list of columns of boxes."""
         return [[box for box in self.boxes if box.col == i]
                 for i in range(1, 10)]
 
     def get_blocks(self) -> List[List[Box]]:
+        """Initialize the list of blocks of boxes."""
         return [[box for box in self.boxes
                  if (box.row - 1) // 3 == i and (box.col - 1) // 3 == j]
                 for i in range(3) for j in range(3)]
 
     def assign_neighbors(self):
+        """Assign the row, column, and block neighbors for each box in the grid."""
         for row in self.rows:
             for box in row:
                 box.row_neighbors = {*row} - {box}
@@ -238,7 +245,7 @@ class Grid:
             box.neighborhood_sets = [box.row_neighbors, box.col_neighbors, box.block_neighbors]
 
     def insert_known_value(self, col: int, row: int, value: int):
-        """Manually set the value of a certain box"""
+        """Directly set the box at specified column/row to value."""
         for box in self.boxes:
             if box.col == col and box.row == row:
                 box.possible_values = {value}
@@ -254,34 +261,45 @@ class Grid:
 class Solver:
     def __init__(self, grid: Grid):
         self._grid = grid
-
+    
+    def useless(self):
+        ...
+    
     @property
     def grid(self):
+        """Returns the current grid."""
         return self._grid
 
-    def known_count(self) -> int:
-        """Calculate the number of Boxes with a known value"""
-        return sum(1 for box in self.grid.boxes if box.known_value)
-
     def possible_count(self) -> int:
-        """Calculate the sum of the count of possible values among all boxes"""
+        """Calculate the sum of the count of possible values among all boxes."""
         return sum(len(box.possible_values) for box in self.grid.boxes)
 
-    def check_if_solved(self) -> bool:
+    def is_solved(self) -> bool:
         """Returns true if puzzle is solved."""
         return self.possible_count() == 81
 
     def solve(self) -> List[Tuple[int, int, int]] or None:
-        prev_count = 729
+        """The main solving method.
+        
+        Repeats the basic solve loop until it it has solved the puzzle, or i no longer
+        is reducing the total number of possible values.
+        
+        If the basic solve loop fails, then it will try the advanced heuristic loop
+        which will continue until it has solved the puzzle or it has run out of box pairs
+        to create new branches from.
+        """
+        
+        # The initial total count of possible values.
+        prev_count = 9 * 81
         while prev_count > self.possible_count():
             while prev_count > self.possible_count():
                 prev_count = self.possible_count()
                 self.basic_solve_loop()
-                if self.check_if_solved():
+                if self.is_solved():
                     return self.solution_keys()
             prev_count = self.possible_count()
             self.guess_between_two_possible_values_heuristic()
-            if self.check_if_solved():
+            if self.is_solved():
                 return self.solution_keys()
         return self.advanced_heuristic()
 
