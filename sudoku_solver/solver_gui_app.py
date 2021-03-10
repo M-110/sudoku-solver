@@ -5,7 +5,7 @@ from os.path import join
 from PyQt5.QtCore import Qt, QSize
 
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication, QMainWindow
+from PyQt5.QtWidgets import QApplication
 from PyQt5.QtWidgets import QLabel
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtWidgets import QGridLayout
@@ -141,8 +141,13 @@ class GridUI(QWidget):
         self.output.setText("")
 
 
-if __name__ == '__main__':
+def main():
+    """Create the GUI window and run the app."""
     app = QApplication(sys.argv)
     ui = GridUI()
     ui.show()
     sys.exit(app.exec_())
+
+
+if __name__ == '__main__':
+    main()
