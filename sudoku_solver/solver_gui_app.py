@@ -13,7 +13,7 @@ from PyQt5.QtWidgets import QPushButton
 from PyQt5.QtWidgets import QComboBox
 from PyQt5.QtWidgets import QGroupBox
 
-import sudoku_solver_model
+from . import sudoku_solver_model
 
 SOLUTION = [
     (1, 1, 1),
